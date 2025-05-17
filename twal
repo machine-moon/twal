@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import random
+
+# Base directory for wallpapers
+BASE_DIR = "/home/dreamland/workspace/twal"
+
+def set_wallpaper(folder, wallpaper):
+    """Set the wallpaper using gsettings."""
+    wallpaper_path = os.path.join(BASE_DIR, folder, "wallpapers", wallpaper)
+    if not os.path.exists(wallpaper_path):
+        print(f"Error: Wallpaper {wallpaper_path} does not exist.")
+        return
+    command = f"gsettings set org.gnome.desktop.background picture-uri file://{wallpaper_path}"
+    os.system(command)
+    command_dark = f"gsettings set org.gnome.desktop.background picture-uri-dark file://{wallpaper_path}"
+    os.system(command_dark)
+    print(f"Wallpaper set to {wallpaper_path}")
+
+def get_wallpapers(folder):
+    """Get the list of wallpapers in a folder."""
+    wallpapers_dir = os.path.join(BASE_DIR, folder, "wallpapers")
+    if not os.path.exists(wallpapers_dir):
+        print(f"Error: Folder {wallpapers_dir} does not exist.")
+        return []
+    return sorted(os.listdir(wallpapers_dir))
+
+def usage():
+    """Print usage instructions."""
+    print("Usage:")
+    print("  ./twal <x> <y>       : Set wallpaper at category <x> and index <y>")
+    print("  ./twal next          : Switch to the next wallpaper")
+    print("  ./twal prev          : Switch to the previous wallpaper")
+    print("  ./twal random        : Set a random wallpaper")
+    print("  ./twal status        : Display the current wallpaper and category")
+    print("\nExamples:")
+    print("  ./twal 2 5           : Set the 5th wallpaper in the 2nd category")
+    print("  ./twal random        : Choose a random wallpaper")
+    print("  ./twal status        : Check the current wallpaper and category")
+
+def main():
+    tmp_file = os.path.join(os.getcwd(), ".twal_state")
+    x, y = 0, 0
+
+    # Load the last state if it exists
+    if os.path.exists(tmp_file):
+        with open(tmp_file, "r") as f:
+            try:
+                x, y = map(int, f.read().strip().split(","))
+            except ValueError:
+                x, y = 0, 0
+
+    if len(sys.argv) < 2:
+        usage()
+        sys.exit(1)
+
+    folders = sorted([f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f))])
+
+    if sys.argv[1] == "status":
+        if not os.path.exists(tmp_file):
+            print("No wallpaper has been set yet.")
+            sys.exit(1)
+
+        folder = folders[x]
+        wallpapers = get_wallpapers(folder)
+        if not wallpapers or y >= len(wallpapers):
+            print("Error: Current wallpaper state is invalid.")
+            sys.exit(1)
+
+        wallpaper = wallpapers[y]
+        print(f"X: {x}, Y: {y}")
+        print(f"Path: {os.path.join(BASE_DIR, folder, 'wallpapers', wallpaper)}")
+        print(f"Current wallpaper: {wallpaper}")
+        print(f"Category: {folder}")
+        return
+
+    if sys.argv[1] == "random" or sys.argv[1] == "rand":
+        while True:
+            x = random.randint(0, len(folders) - 1)
+            folder = folders[x]
+            wallpapers = get_wallpapers(folder)
+            if wallpapers:
+                y = random.randint(0, len(wallpapers) - 1)
+                wallpaper = wallpapers[y]
+                set_wallpaper(folder, wallpaper)
+                with open(tmp_file, "w") as f:
+                    f.write(f"{x},{y}")
+                break
+        return
+
+    if sys.argv[1] == "next":
+        y += 1
+        folder = folders[x]
+        wallpapers = get_wallpapers(folder)
+
+        if y >= len(wallpapers):
+            y = 0
+            x += 1
+            if x >= len(folders):
+                print("Error: No more wallpapers available.")
+                sys.exit(1)
+            folder = folders[x]
+            wallpapers = get_wallpapers(folder)
+
+        if not wallpapers:
+            print("Error: No wallpapers found in the selected folder.")
+            sys.exit(1)
+
+        wallpaper = wallpapers[y]
+        set_wallpaper(folder, wallpaper)
+
+        # Save the new state
+        with open(tmp_file, "w") as f:
+            f.write(f"{x},{y}")
+        return
+
+    if sys.argv[1] == "prev":
+        y -= 1
+        if y < 0:
+            x -= 1
+            if x < 0:
+                print("Error: No previous wallpapers available.")
+                sys.exit(1)
+            folder = folders[x]
+            wallpapers = get_wallpapers(folder)
+            y = len(wallpapers) - 1
+
+        folder = folders[x]
+        wallpapers = get_wallpapers(folder)
+
+        if not wallpapers:
+            print("Error: No wallpapers found in the selected folder.")
+            sys.exit(1)
+
+        wallpaper = wallpapers[y]
+        set_wallpaper(folder, wallpaper)
+
+        # Save the new state
+        with open(tmp_file, "w") as f:
+            f.write(f"{x},{y}")
+        return
+
+    if len(sys.argv) == 3 and sys.argv[1].isdigit() and sys.argv[2].isdigit():
+        x = int(sys.argv[1])
+        y = int(sys.argv[2])
+    else:
+        print("Invalid arguments.")
+        usage()
+        sys.exit(1)
+
+    if x >= len(folders):
+        print("Error: X index out of range.")
+        sys.exit(1)
+
+    folder = folders[x]
+    wallpapers = get_wallpapers(folder)
+
+    if y >= len(wallpapers):
+        print("Error: Y index out of range.")
+        sys.exit(1)
+
+    wallpaper = wallpapers[y]
+    set_wallpaper(folder, wallpaper)
+
+    # Save the new state
+    with open(tmp_file, "w") as f:
+        f.write(f"{x},{y}")
+
+if __name__ == "__main__":
+    main()
