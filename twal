@@ -38,9 +38,13 @@ def usage():
     print("  ./twal prev          : Switch to the previous wallpaper")
     print("  ./twal random        : Set a random wallpaper")
     print("  ./twal status        : Display the current wallpaper and category")
+    print("  ./twal show          : Show all saved aliases")
+    print("  ./twal examples      : Show usage examples")
     print("  ./twal save <alias>  : Save current wallpaper state as <alias>")
     print("  ./twal load <alias>  : Load wallpaper state from <alias>")
-    print("\nExamples:")
+
+def show_examples():
+    print("Examples:")
     print("  ./twal 2 5           : Set the 5th wallpaper in the 2nd category")
     print("  ./twal random        : Choose a random wallpaper")
     print("  ./twal status        : Check the current wallpaper and category")
@@ -208,7 +212,22 @@ def main():
         with open(STATE_FILE, "w") as f:
             f.write(f"{x},{y}")
         return
-
+    if sys.argv[1] == "show":
+        if not os.path.exists(ALIASES_FILE):
+            print("No aliases saved yet.")
+            return
+        print(f"{'alias':<15} | {'X,Y':<7} | {'category':<20} | {'path'}")
+        print("-" * 80)
+        with open(ALIASES_FILE, "r") as f:
+            for line in f:
+                parts = [p.strip() for p in line.strip().split('|')]
+                if len(parts) == 4:
+                    alias, xy, path, category = parts
+                    print(f"{alias:<15} | {xy:<7} | {category:<20} | {path}")
+        return
+    if sys.argv[1] == "examples":
+        show_examples()
+        return
     if len(sys.argv) == 3 and sys.argv[1].isdigit() and sys.argv[2].isdigit():
         x = int(sys.argv[1])
         y = int(sys.argv[2])
