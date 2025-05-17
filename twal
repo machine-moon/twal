@@ -5,7 +5,10 @@ import sys
 import random
 
 # Base directory for wallpapers
-BASE_DIR = "/home/dreamland/workspace/twal"
+BASE_DIR = "/home/dreamland/wallpapers"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_FILE = os.path.join(SCRIPT_DIR, ".twal_state")
+ALIASES_FILE = os.path.join(SCRIPT_DIR, ".twal_aliases")
 
 def set_wallpaper(folder, wallpaper):
     """Set the wallpaper using gsettings."""
@@ -35,23 +38,58 @@ def usage():
     print("  ./twal prev          : Switch to the previous wallpaper")
     print("  ./twal random        : Set a random wallpaper")
     print("  ./twal status        : Display the current wallpaper and category")
+    print("  ./twal save <alias>  : Save current wallpaper state as <alias>")
+    print("  ./twal load <alias>  : Load wallpaper state from <alias>")
     print("\nExamples:")
     print("  ./twal 2 5           : Set the 5th wallpaper in the 2nd category")
     print("  ./twal random        : Choose a random wallpaper")
     print("  ./twal status        : Check the current wallpaper and category")
+    print("  ./twal save work     : Save current wallpaper state as 'work'")
+    print("  ./twal load work     : Load wallpaper state from 'work'")
+
+def save_alias(alias, x, y, path, category):
+    lines = []
+    if os.path.exists(ALIASES_FILE):
+        with open(ALIASES_FILE, "r") as f:
+            lines = f.readlines()
+    # Remove existing alias if present
+    lines = [line for line in lines if not line.split('|')[0].strip() == alias]
+    # Add new alias
+    lines.append(f"{alias} | {x},{y} | {path} | {category}\n")
+    with open(ALIASES_FILE, "w") as f:
+        f.writelines(lines)
+    print(f"Alias '{alias}' saved.")
+
+def load_alias(alias):
+    if not os.path.exists(ALIASES_FILE):
+        print("No aliases saved yet.")
+        sys.exit(1)
+    with open(ALIASES_FILE, "r") as f:
+        for line in f:
+            parts = [p.strip() for p in line.strip().split('|')]
+            if len(parts) == 4 and parts[0] == alias:
+                x, y = map(int, parts[1].split(','))
+                path = parts[2]
+                category = parts[3]
+                return x, y, path, category
+    print(f"Alias '{alias}' not found.")
+    sys.exit(1)
 
 def main():
-    tmp_file = os.path.join(os.getcwd(), ".twal_state")
     x, y = 0, 0
+    folder = None
 
     # Load the last state if it exists
-    if os.path.exists(tmp_file):
-        with open(tmp_file, "r") as f:
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
             try:
-                x, y = map(int, f.read().strip().split(","))
+                state = f.read().strip().split(",")
+                if len(state) == 3:
+                    folder, y = state[0], int(state[1])
+                else:
+                    x, y = map(int, state)
             except ValueError:
-                x, y = 0, 0
-
+                x,
     if len(sys.argv) < 2:
         usage()
         sys.exit(1)
@@ -59,7 +97,7 @@ def main():
     folders = sorted([f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f))])
 
     if sys.argv[1] == "status":
-        if not os.path.exists(tmp_file):
+        if not os.path.exists(STATE_FILE):
             print("No wallpaper has been set yet.")
             sys.exit(1)
 
@@ -85,7 +123,7 @@ def main():
                 y = random.randint(0, len(wallpapers) - 1)
                 wallpaper = wallpapers[y]
                 set_wallpaper(folder, wallpaper)
-                with open(tmp_file, "w") as f:
+                with open(STATE_FILE, "w") as f:
                     f.write(f"{x},{y}")
                 break
         return
@@ -112,7 +150,7 @@ def main():
         set_wallpaper(folder, wallpaper)
 
         # Save the new state
-        with open(tmp_file, "w") as f:
+        with open(STATE_FILE, "w") as f:
             f.write(f"{x},{y}")
         return
 
@@ -138,7 +176,36 @@ def main():
         set_wallpaper(folder, wallpaper)
 
         # Save the new state
-        with open(tmp_file, "w") as f:
+        with open(STATE_FILE, "w") as f:
+            f.write(f"{x},{y}")
+        return
+
+    if sys.argv[1] == "save" and len(sys.argv) == 3:
+        alias = sys.argv[2]
+        folder = folders[x]
+        wallpapers = get_wallpapers(folder)
+        if not wallpapers or y >= len(wallpapers):
+            print("Error: Current wallpaper state is invalid.")
+            sys.exit(1)
+        wallpaper = wallpapers[y]
+        path = os.path.join(BASE_DIR, folder, "wallpapers", wallpaper)
+        save_alias(alias, x, y, path, folder)
+        return
+
+    if sys.argv[1] == "load" and len(sys.argv) == 3:
+        alias = sys.argv[2]
+        x, y, path, folder = load_alias(alias)
+        folders = sorted([f for f in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, f))])
+        if folder not in folders:
+            print(f"Error: Category '{folder}' not found.")
+            sys.exit(1)
+        wallpapers = get_wallpapers(folder)
+        if y >= len(wallpapers):
+            print("Error: Y index out of range for category.")
+            sys.exit(1)
+        wallpaper = wallpapers[y]
+        set_wallpaper(folder, wallpaper)
+        with open(STATE_FILE, "w") as f:
             f.write(f"{x},{y}")
         return
 
@@ -165,7 +232,7 @@ def main():
     set_wallpaper(folder, wallpaper)
 
     # Save the new state
-    with open(tmp_file, "w") as f:
+    with open(STATE_FILE, "w") as f:
         f.write(f"{x},{y}")
 
 if __name__ == "__main__":
