@@ -13,7 +13,7 @@ You can download the full, ready-to-use set from one of the following links (use
 ## Installation
 
 1. **Download the images**  
-    Download and extract the wallpapers from the [Google Drive link](https://drive.google.com/your-link-here) to a folder, e.g. `~/wallpapers`.
+    Download and extract the wallpapers from the links above to a folder, e.g. `~/wallpapers`.
 
 2. **Set the wallpaper directory**  
     Open `twal` in a text editor and set the `BASE_DIR` variable at the top to the path where you extracted the wallpapers:
